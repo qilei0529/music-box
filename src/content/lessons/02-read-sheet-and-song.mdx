@@ -17,6 +17,33 @@ export const twinkleNotes = [
   { note: 'C4', label: 'Do', atBeat: 14, durationBeats: 2 },
 ]
 
+export const sineNodes = [
+  { notes: ['C3', 'G3'], atBeat: 0, durationBeats: 2, label: 'C+G' },
+  { isRest: true, atBeat: 2, durationBeats: 2, label: 'Rest' },
+  { notes: ['F3', 'A3'], atBeat: 4, durationBeats: 2, label: 'F+A' },
+  { notes: ['G3', 'B3'], atBeat: 6, durationBeats: 2, label: 'G+B' },
+  { notes: ['F3', 'A3'], atBeat: 8, durationBeats: 2, label: 'F+A' },
+  { notes: ['C3', 'G3'], atBeat: 10, durationBeats: 2, label: 'C+G' },
+  { isRest: true, atBeat: 12, durationBeats: 2, label: 'Rest' },
+  { notes: ['C3', 'G3'], atBeat: 14, durationBeats: 2, label: 'C+G' },
+]
+
+
+export const twinkleLanes = [
+  {
+    id: 'melody',
+    label: 'Melody',
+    instrument: 'triangle',
+    notes: twinkleNotes,
+  },
+  // {
+  //   id: 'support',
+  //   label: 'Support',
+  //   instrument: 'sine',
+  //   notes: sineNodes,
+  // },
+]
+
 上一课我们认识了 Do Re Mi。  
 这一课你会学会两件事：
 
@@ -71,7 +98,7 @@ export const twinkleNotes = [
 
 点击播放后，音符会从右往左移动。音符中心通过红线时会自动发声，你可以跟着弹：
 
-<ScrollingScore notes={twinkleNotes} bpm={72} beatsPerBar={4} pixelsPerBeat={76} />
+<ScrollingScore lanes={twinkleLanes} bpm={72} beatsPerBar={4} pixelsPerBeat={76} />
 
 ### 分段练习
 

@@ -1,20 +1,30 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pause, Play } from 'lucide-react'
+import { Pause, Play, Settings } from 'lucide-react'
 
-import { playNote } from '@/lib/audio'
+import { AudioInstrument, playNote } from '@/lib/audio'
 
 export interface ScrollingScoreNote {
-  note: string
+  note?: string
+  notes?: string[]
   atBeat?: number
   durationBeats?: number
   beats?: number
   label?: string
+  isRest?: boolean
+}
+
+export interface ScrollingScoreLane {
+  id: string
+  label?: string
+  instrument?: AudioInstrument
+  notes: ScrollingScoreNote[]
 }
 
 interface ScrollingScoreProps {
-  notes: ScrollingScoreNote[]
+  notes?: ScrollingScoreNote[]
+  lanes?: ScrollingScoreLane[]
   bpm: number
   beatsPerBar?: number
   pixelsPerBeat?: number
@@ -23,6 +33,10 @@ interface ScrollingScoreProps {
 }
 
 const END_PADDING_BEATS = 1.5
+const LANE_HEIGHT = 52
+const LANE_GAP = 10
+const LANE_PADDING_Y = 8
+const NOTE_HEIGHT = 36
 
 function beatsToSeconds(beats: number, effectiveBpm: number) {
   return (beats * 60) / effectiveBpm
@@ -35,17 +49,22 @@ function formatDuration(beats: number) {
 
 export default function ScrollingScore({
   notes,
+  lanes,
   bpm,
   beatsPerBar = 4,
   pixelsPerBeat = 72,
   lookAheadBeats = 2,
   loop = false,
 }: ScrollingScoreProps) {
+  // MARK: Transport and UI state.
   const [isPlaying, setIsPlaying] = useState(false)
   const [transportBeats, setTransportBeats] = useState(0)
-  const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null)
+  const [activeEventByLane, setActiveEventByLane] = useState<Record<string, string>>({})
   const [viewportWidth, setViewportWidth] = useState(0)
   const [speed, setSpeed] = useState(1)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [mutedLanes, setMutedLanes] = useState<Set<string>>(new Set())
+  const [soloLanes, setSoloLanes] = useState<Set<string>>(new Set())
 
   const viewportRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -54,64 +73,131 @@ export default function ScrollingScore({
   const toneRef = useRef<typeof import('tone') | null>(null)
   const scheduledEventIdsRef = useRef<number[]>([])
   const runTokenRef = useRef(0)
+  const mutedLanesRef = useRef<Set<string>>(new Set())
+  const soloLanesRef = useRef<Set<string>>(new Set())
 
   const effectiveBpm = bpm * speed
   const playheadX = viewportWidth / 3
 
-  // MARK: Normalize note 
-  // input and build render metrics.
-  const processedNotes = useMemo(() => {
-    const normalized = notes.reduce<{
-      items: Array<ScrollingScoreNote & { durationBeats: number; atBeat: number; originalIndex: number }>
-      nextBeat: number
-    }>(
-      (acc, note, originalIndex) => {
-        const durationBeats = note.durationBeats ?? note.beats ?? 1
-        const atBeat = note.atBeat ?? acc.nextBeat
-        return {
-          items: [...acc.items, { ...note, durationBeats, atBeat, originalIndex }],
-          nextBeat: note.atBeat === undefined ? acc.nextBeat + durationBeats : acc.nextBeat,
-        }
+  // MARK: Normalize lanes and default instrument metadata.
+  const normalizedLanes = useMemo<ScrollingScoreLane[]>(() => {
+    if (lanes && lanes.length > 0) {
+      return lanes.map((lane) => ({
+        ...lane,
+        label: lane.label ?? lane.id,
+        instrument: lane.instrument ?? 'triangle',
+      }))
+    }
+
+    return [
+      {
+        id: 'main',
+        label: 'Main',
+        instrument: 'triangle',
+        notes: notes ?? [],
       },
-      { items: [], nextBeat: 0 },
-    ).items
+    ]
+  }, [lanes, notes])
+
+  const laneIndexMap = useMemo(
+    () =>
+      normalizedLanes.reduce<Record<string, number>>(
+        (acc, lane, index) => ({ ...acc, [lane.id]: index }),
+        {},
+      ),
+    [normalizedLanes],
+  )
+
+  // MARK: Normalize lane events (single note / chord / rest) and render metrics.
+  const processedEvents = useMemo(() => {
+    const normalized = normalizedLanes.flatMap((lane, laneIndex) =>
+      lane.notes.reduce<{
+        items: Array<
+          ScrollingScoreNote & {
+            id: string
+            laneId: string
+            laneLabel: string
+            laneInstrument: AudioInstrument
+            laneIndex: number
+            durationBeats: number
+            atBeat: number
+            pitches: string[]
+            isRest: boolean
+          }
+        >
+        nextBeat: number
+      }>(
+        (acc, note, originalIndex) => {
+          const durationBeats = note.durationBeats ?? note.beats ?? 1
+          const atBeat = note.atBeat ?? acc.nextBeat
+          const pitches = note.notes?.length ? note.notes : note.note ? [note.note] : []
+          const isRest = note.isRest ?? pitches.length === 0
+
+          return {
+            items: [
+              ...acc.items,
+              {
+                ...note,
+                id: `${lane.id}-${originalIndex}-${atBeat}`,
+                laneId: lane.id,
+                laneLabel: lane.label ?? lane.id,
+                laneInstrument: lane.instrument ?? 'triangle',
+                laneIndex,
+                durationBeats,
+                atBeat,
+                pitches,
+                isRest,
+              },
+            ],
+            nextBeat: note.atBeat === undefined ? acc.nextBeat + durationBeats : acc.nextBeat,
+          }
+        },
+        { items: [], nextBeat: 0 },
+      ).items,
+    )
 
     return normalized
       .sort((a, b) =>
-        a.atBeat === b.atBeat ? a.originalIndex - b.originalIndex : a.atBeat - b.atBeat,
+        a.atBeat === b.atBeat ? a.laneIndex - b.laneIndex : a.atBeat - b.atBeat,
       )
-      .map((note, index) => {
-        const triggerBeat = lookAheadBeats + note.atBeat
+      .map((event, index) => {
+        const triggerBeat = lookAheadBeats + event.atBeat
         return {
-          ...note,
+          ...event,
           index,
           triggerBeat,
           startPx: triggerBeat * pixelsPerBeat,
-          widthPx: Math.max(note.durationBeats * pixelsPerBeat - 8, 28),
+          widthPx: Math.max(event.durationBeats * pixelsPerBeat - 8, 28),
         }
       })
-  }, [lookAheadBeats, notes, pixelsPerBeat])
+  }, [lookAheadBeats, normalizedLanes, pixelsPerBeat])
 
   const songTotalBeats = useMemo(() => {
-    return processedNotes.reduce((max, note) => {
-      return Math.max(max, note.atBeat + note.durationBeats)
+    return processedEvents.reduce((max, event) => {
+      return Math.max(max, event.atBeat + event.durationBeats)
     }, 0)
-  }, [processedNotes])
+  }, [processedEvents])
+
+  const laneTrackHeight = Math.max(
+    normalizedLanes.length * LANE_HEIGHT + Math.max(normalizedLanes.length - 1, 0) * LANE_GAP,
+    LANE_HEIGHT,
+  )
+  const innerTrackHeight = laneTrackHeight + LANE_PADDING_Y * 2
 
   const totalTrackBeats = lookAheadBeats + songTotalBeats + END_PADDING_BEATS
   const totalTrackWidth = totalTrackBeats * pixelsPerBeat
   const finishBeat = lookAheadBeats + songTotalBeats + END_PADDING_BEATS / 2
   const trackOffsetPx = playheadX - transportBeats * pixelsPerBeat
 
-  // MARK: Find the last note
-  // that already crossed the playhead.
-  const lastCrossedNoteIndex = useMemo(() => {
-    if (!processedNotes.length) return null
-    for (let i = processedNotes.length - 1; i >= 0; i -= 1) {
-      if (processedNotes[i].triggerBeat <= transportBeats) return processedNotes[i].index
-    }
-    return null
-  }, [processedNotes, transportBeats])
+  // MARK: Find the last crossed event for each lane.
+  const lastCrossedByLane = useMemo(() => {
+    return processedEvents.reduce<Record<string, string>>((acc, event) => {
+      if (event.triggerBeat <= transportBeats) {
+        return { ...acc, [event.laneId]: event.id }
+      }
+      return acc
+    }, {})
+  }, [processedEvents, transportBeats])
 
   const clearScheduledEvents = useCallback(() => {
     const Tone = toneRef.current
@@ -129,8 +215,18 @@ export default function ScrollingScore({
     clearScheduledEvents()
   }, [clearScheduledEvents])
 
-  // MARK: Schedule note playback 
-  // with Tone transport for tighter timing.
+  const isLaneAudible = useCallback((laneId: string) => {
+    const soloSet = soloLanesRef.current
+    const mutedSet = mutedLanesRef.current
+
+    if (soloSet.size > 0) {
+      return soloSet.has(laneId) && !mutedSet.has(laneId)
+    }
+
+    return !mutedSet.has(laneId)
+  }, [])
+
+  // MARK: Schedule lane events with Tone transport for tighter timing.
   const beginPlayback = useCallback(
     async (fromBeat: number) => {
       const token = ++runTokenRef.current
@@ -144,17 +240,22 @@ export default function ScrollingScore({
       scheduledEventIdsRef.current = []
       Tone.Transport.bpm.value = effectiveBpm
 
-      processedNotes.forEach((note) => {
-        if (note.triggerBeat < fromBeat) return
+      processedEvents.forEach((event) => {
+        if (event.triggerBeat < fromBeat) return
 
-        const delaySec = beatsToSeconds(note.triggerBeat - fromBeat, effectiveBpm)
+        const delaySec = beatsToSeconds(event.triggerBeat - fromBeat, effectiveBpm)
         const eventId = Tone.Transport.scheduleOnce((time) => {
-          void playNote(
-            note.note,
-            beatsToSeconds(note.durationBeats, effectiveBpm),
-            time,
-          )
-          setActiveNoteIndex(note.index)
+          if (!event.isRest && isLaneAudible(event.laneId)) {
+            const durationSec = beatsToSeconds(event.durationBeats, effectiveBpm)
+            event.pitches.forEach((pitch) => {
+              void playNote(pitch, durationSec, time, {
+                voiceKey: `${event.laneId}:${event.laneInstrument}`,
+                instrument: event.laneInstrument,
+              })
+            })
+          }
+
+          setActiveEventByLane((prev) => ({ ...prev, [event.laneId]: event.id }))
         }, `+${delaySec}`)
 
         scheduledEventIdsRef.current.push(eventId)
@@ -166,8 +267,16 @@ export default function ScrollingScore({
       Tone.Transport.start('+0')
       setIsPlaying(true)
     },
-    [effectiveBpm, processedNotes],
+    [effectiveBpm, isLaneAudible, processedEvents],
   )
+
+  useEffect(() => {
+    mutedLanesRef.current = mutedLanes
+  }, [mutedLanes])
+
+  useEffect(() => {
+    soloLanesRef.current = soloLanes
+  }, [soloLanes])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -185,8 +294,7 @@ export default function ScrollingScore({
     return () => observer.disconnect()
   }, [])
 
-  // MARK: Keep visual 
-  // scroll position in sync with audio transport.
+  // MARK: Keep visual scroll position in sync with audio transport.
   useEffect(() => {
     if (!isPlaying) return
 
@@ -204,7 +312,7 @@ export default function ScrollingScore({
         if (loop) {
           transportBeatsRef.current = 0
           setTransportBeats(0)
-          setActiveNoteIndex(null)
+          setActiveEventByLane({})
           setIsPlaying(false)
           void beginPlayback(0)
           return
@@ -240,7 +348,7 @@ export default function ScrollingScore({
   }
 
   const handlePlayPause = () => {
-    if (!notes.length) return
+    if (!processedEvents.length) return
 
     if (isPlaying) {
       stopTransport()
@@ -250,7 +358,7 @@ export default function ScrollingScore({
 
     const resumeBeat = transportBeats >= finishBeat ? 0 : transportBeats
     if (resumeBeat === 0) {
-      setActiveNoteIndex(null)
+      setActiveEventByLane({})
     }
     void beginPlayback(resumeBeat)
   }
@@ -260,14 +368,38 @@ export default function ScrollingScore({
     setIsPlaying(false)
     setTransportBeats(0)
     transportBeatsRef.current = 0
-    setActiveNoteIndex(null)
+    setActiveEventByLane({})
     baseBeatsRef.current = 0
+  }
+
+  const toggleMuteLane = (laneId: string) => {
+    setMutedLanes((prev) => {
+      const next = new Set(prev)
+      if (next.has(laneId)) {
+        next.delete(laneId)
+      } else {
+        next.add(laneId)
+      }
+      return next
+    })
+  }
+
+  const toggleSoloLane = (laneId: string) => {
+    setSoloLanes((prev) => {
+      const next = new Set(prev)
+      if (next.has(laneId)) {
+        next.delete(laneId)
+      } else {
+        next.add(laneId)
+      }
+      return next
+    })
   }
 
   const barLineCount = Math.floor(songTotalBeats / beatsPerBar) + 1
 
   return (
-    <section className="my-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+    <section className="my-6 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-4">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -275,7 +407,7 @@ export default function ScrollingScore({
           aria-label={isPlaying ? 'Pause' : 'Play'}
           title={isPlaying ? 'Pause' : 'Play'}
           className="rounded-md bg-amber-500 px-4 py-1 text-sm font-semibold text-white transition-colors border-2 border-amber-600 h-8 hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-zinc-300"
-          disabled={!notes.length}
+          disabled={!processedEvents.length}
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
@@ -298,12 +430,76 @@ export default function ScrollingScore({
             <option value={1.25}>1.25x</option>
           </select>
         </label>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((prev) => !prev)}
+          aria-label={showAdvanced ? 'Hide advanced controls' : 'Show advanced controls'}
+          title={showAdvanced ? 'Hide advanced controls' : 'Show advanced controls'}
+          className={`ml-1 h-8 rounded-md border-2 border-zinc-300 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 transition-colors  ${showAdvanced ? 'text-zinc-600 bg-zinc-200' : 'hover:bg-zinc-100'}`}
+        >
+          <Settings className={`h-4.5 w-4.5 transition-transform ${showAdvanced ? 'text-zinc-600 rotate-90' : ''}`} />
+        </button>
       </div>
+
+      {/* MARK: Lane controls */}
+      {showAdvanced && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {normalizedLanes.map((lane) => (
+            <div
+              key={lane.id}
+              className="inline-flex items-center gap-2 rounded-md border-2 border-zinc-300 bg-white px-2 py-1 h-8"
+            >
+              <span className="text-xs font-semibold text-zinc-700">{lane.label}</span>
+              <span className="rounded bg-zinc-100 px-1 py-0.5 text-[10px] text-zinc-500">
+                {lane.instrument}
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleMuteLane(lane.id)}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  mutedLanes.has(lane.id)
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                }`}
+              >
+                M
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleSoloLane(lane.id)}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  soloLanes.has(lane.id)
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                }`}
+              >
+                S
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div
         ref={viewportRef}
-        className="relative h-28 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+        className="relative overflow-hidden rounded-lg border-2 border-zinc-200 bg-white"
+        style={{ height: innerTrackHeight }}
       >
+        {/* MARK: Fixed lane labels (left side) */}
+        {normalizedLanes.map((lane, laneIndex) => {
+          const top =
+            LANE_PADDING_Y + laneIndex * (LANE_HEIGHT + LANE_GAP) + (LANE_HEIGHT - 20) / 2
+          return (
+            <div
+              key={`lane-label-${lane.id}`}
+              className="pointer-events-none absolute left-2 z-20 rounded-lg border-2 border-zinc-300 bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600"
+              style={{ top }}
+            >
+              {lane.label}
+            </div>
+          )
+        })}
+
         <div
           aria-hidden
           className="absolute bottom-0 top-0 w-1 z-10 bg-red-500"
@@ -311,13 +507,26 @@ export default function ScrollingScore({
         />
 
         <div
-          className="relative h-full"
+          className="relative"
           style={{
             width: totalTrackWidth,
+            height: innerTrackHeight,
             transform: `translateX(${trackOffsetPx}px)`,
             willChange: 'transform',
           }}
         >
+          {normalizedLanes.map((lane, laneIndex) => {
+            const top = LANE_PADDING_Y + laneIndex * (LANE_HEIGHT + LANE_GAP)
+            return (
+              <div
+                key={`lane-bg-${lane.id}`}
+                aria-hidden
+                className="absolute left-0 right-0 rounded-sm bg-zinc-50/70"
+                style={{ top, height: LANE_HEIGHT }}
+              />
+            )
+          })}
+
           {/* MARK: Bar guides
            */}
           {Array.from({ length: barLineCount }, (_, index) => {
@@ -334,27 +543,45 @@ export default function ScrollingScore({
 
           {/* MARK: Note blocks
            */}
-          {processedNotes.map((note) => {
+          {processedEvents.map((event) => {
+            const laneIndex = laneIndexMap[event.laneId] ?? 0
+            const top =
+              LANE_PADDING_Y + laneIndex * (LANE_HEIGHT + LANE_GAP) + (LANE_HEIGHT - NOTE_HEIGHT) / 2
             const isCurrent =
-              activeNoteIndex === note.index ||
-              (!isPlaying && lastCrossedNoteIndex !== null && note.index === lastCrossedNoteIndex)
+              activeEventByLane[event.laneId] === event.id ||
+              (!isPlaying && lastCrossedByLane[event.laneId] === event.id)
+            const displayLabel = event.isRest
+              ? 'Rest'
+              : event.label ?? (event.pitches.length > 1 ? event.pitches.join(' · ') : event.pitches[0])
 
             return (
               <div
-                key={`${note.note}-${note.index}`}
-                className={`absolute top-1/2 -translate-y-1/2 rounded-xl border-2 px-2 py-1 text-center text-xs font-semibold transition-colors ${
-                  isCurrent
+                key={event.id}
+                className={`absolute rounded-xl border-2 px-2 py-1 text-center text-xs font-semibold transition-colors ${
+                  event.isRest
+                    ? 'border-zinc-200 bg-zinc-100 text-zinc-400'
+                    : isCurrent
                     ? 'border-amber-400 bg-amber-100 text-amber-800'
                     : 'border-zinc-300 bg-zinc-100 text-zinc-700'
                 }`}
                 style={{
-                  left: note.startPx,
-                  width: note.widthPx,
+                  left: event.startPx,
+                  top,
+                  width: event.widthPx,
+                  height: NOTE_HEIGHT,
                 }}
-                title={`${note.note} (${formatDuration(note.durationBeats)})`}
+                title={`${displayLabel} (${formatDuration(event.durationBeats)})`}
               >
-                <div>{note.label ?? note.note}</div>
-                <div className="text-[10px] font-normal text-zinc-500">{note.note}</div>
+                <div className="truncate">{displayLabel}</div>
+                {event.isRest ? (
+                  <div className="text-[10px] font-normal text-zinc-500">Rest</div>
+                ) : event.pitches.length > 1 ? (
+                  <div className="text-[10px] font-normal text-zinc-500">
+                    Chord ({event.pitches.length})
+                  </div>
+                ) : (
+                  <div className="text-[10px] font-normal text-zinc-500">{event.pitches[0]}</div>
+                )}
               </div>
             )
           })}
@@ -362,8 +589,8 @@ export default function ScrollingScore({
       </div>
 
       <p className="mt-3 text-xs text-zinc-500">
-        Red line is the playhead. Notes play when the note start crosses the line.
-        Tempo: {Math.round(effectiveBpm)} BPM.
+        Red line is the playhead. Notes trigger when note start crosses the line.
+        {showAdvanced && ' Use lane M/S buttons for mute/solo.'}
       </p>
     </section>
   )
