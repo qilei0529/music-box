@@ -1,6 +1,9 @@
-import { redirect } from 'next/navigation'
-import { lessons } from '@/lib/lessons'
+import HomeCover from '@/content/home-cover.mdx'
 
 export default function Home() {
-  redirect(`/lessons/${lessons[0].slug}`)
+  return (
+    <article className="lesson-content max-w-3xl">
+      <HomeCover />
+    </article>
+  )
 }
