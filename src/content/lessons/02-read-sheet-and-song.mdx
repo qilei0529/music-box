@@ -44,6 +44,26 @@ export const twinkleLanes = [
   // },
 ]
 
+export const starterTrebleAbc = `X:1
+T:Treble starter (C4 to A4)
+M:4/4
+L:1/4
+Q:1/4=72
+%%stretchlast 1
+K:C clef=treble
+C D E F | G A G2 |`
+
+export const twinkleAbc = `X:2
+T:Twinkle Twinkle
+M:4/4
+L:1/4
+Q:1/4=72
+%%stretchlast 1
+K:C clef=treble
+C C G G | A A G2 |
+F F E E | D D C2 |
+`
+
 上一课我们认识了 Do Re Mi。  
 这一课你会学会两件事：
 
@@ -54,10 +74,15 @@ export const twinkleLanes = [
 
 钢琴谱通常由两行五线谱组成：
 
-- 上面一行：右手（高音谱号，𝄞）
-- 下面一行：左手（低音谱号，𝄢）
+- 上面一行：右手（高音谱号:<span className="inline-block text-[3em] leading-none mx-2">𝄞</span>）
+- 下面一行：左手（低音谱号:<span className="inline-block text-[2em] leading-none mx-2">𝄢</span>）
 
 入门时我们先专注右手，这样更容易建立“看谱 -> 找键 -> 发声”的感觉。
+所以本课的示例先使用单行高音谱号；左手低音谱号会在后续课程加入。
+
+下面这个小例子就是右手高音谱号的五线谱（从 C4 到 A4）：
+
+<AbcStaff notation={starterTrebleAbc} title="Treble clef demo" />
 
 ## 右手高音谱号怎么认？
 
@@ -85,6 +110,10 @@ export const twinkleLanes = [
 > 先把 C4 到 A4 认熟，你已经能弹很多简单旋律了。
 
 ## 学一首简单曲子：《小星星》（前两句）
+
+先看一眼对应的五线谱：
+
+<AbcStaff notation={twinkleAbc} title="Twinkle melody (treble clef)" />
 
 下面是右手版本（只用白键）：
 
