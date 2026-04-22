@@ -29,18 +29,18 @@ const BLACK_W = 36
 const BLACK_H = 94
 
 const KEYBOARD_BINDINGS = [
-  { code: 'KeyG', keyLabel: 'G', note: 'C4' },
-  { code: 'KeyY', keyLabel: 'Y', note: 'C#4' },
-  { code: 'KeyH', keyLabel: 'H', note: 'D4' },
-  { code: 'KeyU', keyLabel: 'U', note: 'D#4' },
-  { code: 'KeyJ', keyLabel: 'J', note: 'E4' },
-  { code: 'KeyK', keyLabel: 'K', note: 'F4' },
-  { code: 'KeyO', keyLabel: 'O', note: 'F#4' },
-  { code: 'KeyL', keyLabel: 'L', note: 'G4' },
-  { code: 'KeyP', keyLabel: 'P', note: 'G#4' },
-  { code: 'Semicolon', keyLabel: ';', note: 'A4' },
-  { code: 'BracketLeft', keyLabel: '[', note: 'A#4' },
-  { code: 'Quote', keyLabel: "'", note: 'B4' },
+  { code: 'KeyF', keyLabel: 'F', note: 'C4' },
+  { code: 'KeyT', keyLabel: 'T', note: 'C#4' },
+  { code: 'KeyG', keyLabel: 'G', note: 'D4' },
+  { code: 'KeyY', keyLabel: 'Y', note: 'D#4' },
+  { code: 'KeyH', keyLabel: 'H', note: 'E4' },
+  { code: 'KeyJ', keyLabel: 'J', note: 'F4' },
+  { code: 'KeyI', keyLabel: 'I', note: 'F#4' },
+  { code: 'KeyK', keyLabel: 'K', note: 'G4' },
+  { code: 'KeyO', keyLabel: 'O', note: 'G#4' },
+  { code: 'KeyL', keyLabel: 'L', note: 'A4' },
+  { code: 'KeyP', keyLabel: 'P', note: 'A#4' },
+  { code: 'Semicolon', keyLabel: ';', note: 'B4' },
 ] as const
 
 const KEYBOARD_NOTE_MAP: Record<string, string> = Object.fromEntries(
@@ -161,7 +161,7 @@ export default function PianoKeys() {
         </div>
       </div>
       <p className="mt-2 text-xs text-gray-400">
-        点击琴键试听 · Click keys to play · Keyboard: G Y H U J K O L P ; [ '
+        点击琴键试听 · Click keys to play 
       </p>
     </div>
   )
