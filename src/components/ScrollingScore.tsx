@@ -306,7 +306,7 @@ export default function ScrollingScore({
       >
         <div
           aria-hidden
-          className="absolute bottom-0 top-0 w-0.5 bg-red-500"
+          className="absolute bottom-0 top-0 w-1 z-10 bg-red-500"
           style={{ left: '33.333%' }}
         />
 
@@ -342,7 +342,7 @@ export default function ScrollingScore({
             return (
               <div
                 key={`${note.note}-${note.index}`}
-                className={`absolute top-1/2 -translate-y-1/2 rounded-md border px-2 py-1 text-center text-xs font-semibold transition-colors ${
+                className={`absolute top-1/2 -translate-y-1/2 rounded-xl border-2 px-2 py-1 text-center text-xs font-semibold transition-colors ${
                   isCurrent
                     ? 'border-amber-400 bg-amber-100 text-amber-800'
                     : 'border-zinc-300 bg-zinc-100 text-zinc-700'
