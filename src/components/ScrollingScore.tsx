@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Pause, Play } from 'lucide-react'
 
 import { playNote } from '@/lib/audio'
 
@@ -271,15 +272,17 @@ export default function ScrollingScore({
         <button
           type="button"
           onClick={handlePlayPause}
-          className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-zinc-300"
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          title={isPlaying ? 'Pause' : 'Play'}
+          className="rounded-md bg-amber-500 px-4 py-1 text-sm font-semibold text-white transition-colors border-2 border-amber-600 h-8 hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-zinc-300"
           disabled={!notes.length}
         >
-          {isPlaying ? 'Pause' : 'Play'}
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
         <button
           type="button"
           onClick={handleReset}
-          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
+          className="rounded-md border-2 border-zinc-300 bg-white px-4 py-1 text-sm font-semibold h-8 text-zinc-700 transition-colors hover:bg-zinc-100"
         >
           Reset
         </button>
@@ -288,7 +291,7 @@ export default function ScrollingScore({
           <select
             value={speed}
             onChange={(event) => handleSpeedChange(Number(event.target.value))}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm"
+            className="rounded-md border-2 font-bold border-zinc-300 bg-white px-2 py-1 text-sm"
           >
             <option value={0.75}>0.75x</option>
             <option value={1}>1x</option>
