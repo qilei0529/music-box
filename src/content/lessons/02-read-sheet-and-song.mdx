@@ -1,5 +1,22 @@
 # 认识钢琴谱，并弹一首简单曲子
 
+export const twinkleNotes = [
+  { note: 'C4', label: 'Do', atBeat: 0, durationBeats: 1 },
+  { note: 'C4', label: 'Do', atBeat: 1, durationBeats: 1 },
+  { note: 'G4', label: 'Sol', atBeat: 2, durationBeats: 1 },
+  { note: 'G4', label: 'Sol', atBeat: 3, durationBeats: 1 },
+  { note: 'A4', label: 'La', atBeat: 4, durationBeats: 1 },
+  { note: 'A4', label: 'La', atBeat: 5, durationBeats: 1 },
+  { note: 'G4', label: 'Sol', atBeat: 6, durationBeats: 2 },
+  { note: 'F4', label: 'Fa', atBeat: 8, durationBeats: 1 },
+  { note: 'F4', label: 'Fa', atBeat: 9, durationBeats: 1 },
+  { note: 'E4', label: 'Mi', atBeat: 10, durationBeats: 1 },
+  { note: 'E4', label: 'Mi', atBeat: 11, durationBeats: 1 },
+  { note: 'D4', label: 'Re', atBeat: 12, durationBeats: 1 },
+  { note: 'D4', label: 'Re', atBeat: 13, durationBeats: 1 },
+  { note: 'C4', label: 'Do', atBeat: 14, durationBeats: 2 },
+]
+
 上一课我们认识了 Do Re Mi。  
 这一课你会学会两件事：
 
@@ -49,6 +66,12 @@
 对应唱名：
 
 `Do Do Sol Sol La La Sol | Fa Fa Mi Mi Re Re Do`
+
+### 跟随滚动谱练习（Play 模式）
+
+点击播放后，音符会从右往左移动。音符中心通过红线时会自动发声，你可以跟着弹：
+
+<ScrollingScore notes={twinkleNotes} bpm={72} beatsPerBar={4} pixelsPerBeat={76} />
 
 ### 分段练习
 

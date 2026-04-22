@@ -1,7 +1,11 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let synthInstance: any = null
 
-export async function playNote(note: string, duration = '8n') {
+export async function playNote(
+  note: string,
+  duration: string | number = '8n',
+  atTime?: number,
+) {
   if (typeof window === 'undefined') return
 
   const Tone = await import('tone')
@@ -15,5 +19,5 @@ export async function playNote(note: string, duration = '8n') {
     synthInstance.volume.value = -8
   }
 
-  synthInstance.triggerAttackRelease(note, duration)
+  synthInstance.triggerAttackRelease(note, duration, atTime)
 }
