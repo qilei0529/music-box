@@ -2,7 +2,7 @@ let toneRef: typeof import('tone') | null = null
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const synthMap = new Map<string, any>()
 
-export type AudioInstrument = 'triangle' | 'sine' | 'square' | 'sawtooth'
+export type AudioInstrument = 'piano' | 'triangle' | 'sine' | 'square' | 'sawtooth'
 
 interface PlayNoteOptions {
   voiceKey?: string
@@ -19,15 +19,39 @@ async function getTone() {
 
 async function getSynth(options?: PlayNoteOptions) {
   const Tone = await getTone()
-  const instrument = options?.instrument ?? 'triangle'
+  const instrument = options?.instrument ?? 'piano'
   const voiceKey = options?.voiceKey ?? `default:${instrument}`
 
   const existing = synthMap.get(voiceKey)
   if (existing) return existing
 
+  if (instrument === 'piano') {
+    try {
+      const sampler = new Tone.Sampler({
+        urls: {
+          A3: 'A3.mp3',
+          C4: 'C4.mp3',
+          'D#4': 'Ds4.mp3',
+          'F#4': 'Fs4.mp3',
+          A4: 'A4.mp3',
+        },
+        release: 1.3,
+        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+      }).toDestination()
+      sampler.volume.value = options?.volume ?? -6
+      await Tone.loaded()
+      synthMap.set(voiceKey, sampler)
+      return sampler
+    } catch {
+      // Fall back to synth when sample loading is unavailable.
+    }
+  }
+
+  const fallbackOscillatorType = instrument === 'piano' ? 'triangle' : instrument
+
   const synth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: instrument },
-    envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 },
+    oscillator: { type: fallbackOscillatorType },
+    envelope: { attack: 0.008, decay: 0.5, sustain: 0.18, release: 1.8 },
   }).toDestination()
   synth.volume.value = options?.volume ?? -8
   synthMap.set(voiceKey, synth)

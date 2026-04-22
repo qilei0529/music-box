@@ -85,7 +85,7 @@ export default function ScrollingScore({
       return lanes.map((lane) => ({
         ...lane,
         label: lane.label ?? lane.id,
-        instrument: lane.instrument ?? 'triangle',
+        instrument: lane.instrument ?? 'piano',
       }))
     }
 
@@ -93,7 +93,7 @@ export default function ScrollingScore({
       {
         id: 'main',
         label: 'Main',
-        instrument: 'triangle',
+        instrument: 'piano',
         notes: notes ?? [],
       },
     ]
@@ -141,7 +141,7 @@ export default function ScrollingScore({
                 id: `${lane.id}-${originalIndex}-${atBeat}`,
                 laneId: lane.id,
                 laneLabel: lane.label ?? lane.id,
-                laneInstrument: lane.instrument ?? 'triangle',
+                laneInstrument: lane.instrument ?? 'piano',
                 laneIndex,
                 durationBeats,
                 atBeat,
