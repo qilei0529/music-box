@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Music Box
 
-## Getting Started
+An open-source interactive piano learning web app for beginners.  
+Learn by reading, listening, and playing with lightweight lessons and visual practice tools.
 
-First, run the development server:
+## Features
+
+- Beginner-friendly lesson flow from note basics to simple songs
+- MDX-based content system for easy lesson authoring
+- Interactive piano and scrolling score practice components
+- Clean App Router structure with reusable UI components
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19 + TypeScript
+- Tailwind CSS 4
+- MDX
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [http://localhost:4040](http://localhost:4040).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app`: routes and pages
+- `src/components`: reusable UI and interactive components
+- `src/content`: MDX lessons and homepage content
+- `src/lib`: shared utilities and content helpers
 
-## Learn More
+## Contributing
 
-To learn more about Next.js, take a look at the following resources:
+Issues and PRs are welcome.  
+If you want to add a lesson or improve learning interactions, feel free to open a discussion first.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No license file yet.  
+If you plan to open this for public reuse, add a license (for example MIT) in a follow-up change.
