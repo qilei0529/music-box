@@ -2,7 +2,7 @@
 
 import { FocusEvent, KeyboardEvent, useEffect, useRef, useState } from 'react'
 
-import { playNote } from '@/lib/audio'
+import { attackNote, releaseNote } from '@/lib/audio'
 
 const WHITE_KEYS = [
   { note: 'C4', solfege: 'Do', label: 'C' },
@@ -76,7 +76,7 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
     })
     if (event.repeat) return
 
-    void playNote(note)
+    void attackNote(note)
     onNotePress?.(note)
   }
 
@@ -84,6 +84,7 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
     const note = KEYBOARD_NOTE_MAP[event.code]
     if (!note) return
 
+    void releaseNote(note)
     setPressedNotes((prev) => {
       if (!prev.has(note)) return prev
       const next = new Set(prev)
@@ -115,8 +116,20 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
             {WHITE_KEYS.map((key) => (
               <button
                 key={key.note}
-                onClick={() => { void playNote(key.note); onNotePress?.(key.note) }}
-                onMouseDown={(event) => event.preventDefault()}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  setPressedNotes((prev) => new Set(prev).add(key.note))
+                  void attackNote(key.note)
+                  onNotePress?.(key.note)
+                }}
+                onMouseUp={() => {
+                  setPressedNotes((prev) => { const n = new Set(prev); n.delete(key.note); return n })
+                  void releaseNote(key.note)
+                }}
+                onMouseLeave={() => {
+                  setPressedNotes((prev) => { const n = new Set(prev); n.delete(key.note); return n })
+                  void releaseNote(key.note)
+                }}
                 style={{ width: WHITE_W, height: WHITE_H }}
                 className={`relative border-2 border-zinc-300 rounded-b-xl flex flex-col items-center justify-end pb-2 gap-0.5 transition-colors duration-75 focus:outline-none z-0 -ml-0.5 ${
                   pressedNotes.has(key.note)
@@ -138,8 +151,20 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
             {BLACK_KEYS.map((key) => (
               <button
                 key={key.note}
-                onClick={() => { void playNote(key.note); onNotePress?.(key.note) }}
-                onMouseDown={(event) => event.preventDefault()}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  setPressedNotes((prev) => new Set(prev).add(key.note))
+                  void attackNote(key.note)
+                  onNotePress?.(key.note)
+                }}
+                onMouseUp={() => {
+                  setPressedNotes((prev) => { const n = new Set(prev); n.delete(key.note); return n })
+                  void releaseNote(key.note)
+                }}
+                onMouseLeave={() => {
+                  setPressedNotes((prev) => { const n = new Set(prev); n.delete(key.note); return n })
+                  void releaseNote(key.note)
+                }}
                 style={{
                   position: 'absolute',
                   left: key.afterWhite * (WHITE_W - 2) + WHITE_W - BLACK_W / 2 - 2,

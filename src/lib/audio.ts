@@ -74,3 +74,18 @@ export async function playNote(
 
   synth.triggerAttackRelease(note, duration, atTime)
 }
+
+export async function attackNote(note: string, options?: PlayNoteOptions) {
+  if (typeof window === 'undefined') return
+  const Tone = await getTone()
+  await Tone.start()
+  const synth = await getSynth(options)
+  synth.triggerAttack(note, Tone.now())
+}
+
+export async function releaseNote(note: string, options?: PlayNoteOptions) {
+  if (typeof window === 'undefined') return
+  const Tone = await getTone()
+  const synth = await getSynth(options)
+  synth.triggerRelease(note, Tone.now())
+}
