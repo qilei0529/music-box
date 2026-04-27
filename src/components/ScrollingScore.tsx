@@ -449,6 +449,9 @@ export default function ScrollingScore({
         if (isPracticeMode && e.code === 'Escape') {
           handleTogglePracticeMode()
         }
+        if (!isPlaying && e.code === 'KeyR') {
+          handleReset()
+        }
       }}
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
