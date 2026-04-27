@@ -1,6 +1,6 @@
 'use client'
 
-import { FocusEvent, KeyboardEvent, useRef, useState } from 'react'
+import { FocusEvent, KeyboardEvent, useEffect, useRef, useState } from 'react'
 
 import { playNote } from '@/lib/audio'
 
@@ -51,9 +51,18 @@ const NOTE_SHORTCUT_LABEL_MAP: Record<string, string> = Object.fromEntries(
   KEYBOARD_BINDINGS.map((binding) => [binding.note, binding.keyLabel]),
 )
 
-export default function PianoKeys() {
+interface PianoKeysProps {
+  onNotePress?: (note: string) => void
+  autoFocus?: boolean
+}
+
+export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {}) {
   const [pressedNotes, setPressedNotes] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (autoFocus) containerRef.current?.focus()
+  }, [autoFocus])
 
   const handleKeyboardPlay = (event: KeyboardEvent<HTMLDivElement>) => {
     const note = KEYBOARD_NOTE_MAP[event.code]
@@ -68,6 +77,7 @@ export default function PianoKeys() {
     if (event.repeat) return
 
     void playNote(note)
+    onNotePress?.(note)
   }
 
   const handleKeyboardRelease = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -105,7 +115,7 @@ export default function PianoKeys() {
             {WHITE_KEYS.map((key) => (
               <button
                 key={key.note}
-                onClick={() => playNote(key.note)}
+                onClick={() => { void playNote(key.note); onNotePress?.(key.note) }}
                 onMouseDown={(event) => event.preventDefault()}
                 style={{ width: WHITE_W, height: WHITE_H }}
                 className={`relative border-2 border-zinc-300 rounded-b-xl flex flex-col items-center justify-end pb-2 gap-0.5 transition-colors duration-75 focus:outline-none z-0 -ml-0.5 ${
@@ -128,7 +138,7 @@ export default function PianoKeys() {
             {BLACK_KEYS.map((key) => (
               <button
                 key={key.note}
-                onClick={() => playNote(key.note)}
+                onClick={() => { void playNote(key.note); onNotePress?.(key.note) }}
                 onMouseDown={(event) => event.preventDefault()}
                 style={{
                   position: 'absolute',

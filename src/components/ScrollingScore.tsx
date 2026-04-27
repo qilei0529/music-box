@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pause, Play, Settings } from 'lucide-react'
 
 import { AudioInstrument, playNote } from '@/lib/audio'
+import PianoKeys from '@/components/PianoKeys'
 
 export interface ScrollingScoreNote {
   note?: string
@@ -65,6 +66,8 @@ export default function ScrollingScore({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [mutedLanes, setMutedLanes] = useState<Set<string>>(new Set())
   const [soloLanes, setSoloLanes] = useState<Set<string>>(new Set())
+  const [isPracticeMode, setIsPracticeMode] = useState(false)
+  const [practiceResults, setPracticeResults] = useState<Map<string, 'correct' | 'incorrect'>>(new Map())
 
   const viewportRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -75,6 +78,7 @@ export default function ScrollingScore({
   const runTokenRef = useRef(0)
   const mutedLanesRef = useRef<Set<string>>(new Set())
   const soloLanesRef = useRef<Set<string>>(new Set())
+  const isPracticeModeRef = useRef(false)
 
   const effectiveBpm = bpm * speed
   const playheadX = viewportWidth / 3
@@ -245,7 +249,7 @@ export default function ScrollingScore({
 
         const delaySec = beatsToSeconds(event.triggerBeat - fromBeat, effectiveBpm)
         const eventId = Tone.Transport.scheduleOnce((time) => {
-          if (!event.isRest && isLaneAudible(event.laneId)) {
+          if (!event.isRest && isLaneAudible(event.laneId) && !isPracticeModeRef.current) {
             const durationSec = beatsToSeconds(event.durationBeats, effectiveBpm)
             event.pitches.forEach((pitch) => {
               void playNote(pitch, durationSec, time, {
@@ -277,6 +281,10 @@ export default function ScrollingScore({
   useEffect(() => {
     soloLanesRef.current = soloLanes
   }, [soloLanes])
+
+  useEffect(() => {
+    isPracticeModeRef.current = isPracticeMode
+  }, [isPracticeMode])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -313,6 +321,7 @@ export default function ScrollingScore({
           transportBeatsRef.current = 0
           setTransportBeats(0)
           setActiveEventByLane({})
+          setPracticeResults(new Map())
           setIsPlaying(false)
           void beginPlayback(0)
           return
@@ -359,6 +368,7 @@ export default function ScrollingScore({
     const resumeBeat = transportBeats >= finishBeat ? 0 : transportBeats
     if (resumeBeat === 0) {
       setActiveEventByLane({})
+      setPracticeResults(new Map())
     }
     void beginPlayback(resumeBeat)
   }
@@ -370,6 +380,7 @@ export default function ScrollingScore({
     transportBeatsRef.current = 0
     setActiveEventByLane({})
     baseBeatsRef.current = 0
+    setPracticeResults(new Map())
   }
 
   const toggleMuteLane = (laneId: string) => {
@@ -382,6 +393,35 @@ export default function ScrollingScore({
       }
       return next
     })
+  }
+
+  const handlePracticeNotePress = useCallback((pressedNote: string) => {
+    const currentActiveIds = new Set(Object.values(activeEventByLane))
+    const currentEvents = processedEvents.filter(
+      (e) => currentActiveIds.has(e.id) && !e.isRest,
+    )
+    if (currentEvents.length === 0) return
+
+    setPracticeResults((prev) => {
+      const next = new Map(prev)
+      currentEvents.forEach((event) => {
+        if (event.pitches.includes(pressedNote)) {
+          next.set(event.id, 'correct')
+        } else if (!next.has(event.id)) {
+          next.set(event.id, 'incorrect')
+        }
+      })
+      return next
+    })
+  }, [activeEventByLane, processedEvents])
+
+  const handleTogglePracticeMode = () => {
+    if (isPlaying) {
+      stopTransport()
+      setIsPlaying(false)
+    }
+    setPracticeResults(new Map())
+    setIsPracticeMode((prev) => !prev)
   }
 
   const toggleSoloLane = (laneId: string) => {
@@ -399,7 +439,18 @@ export default function ScrollingScore({
   const barLineCount = Math.floor(songTotalBeats / beatsPerBar) + 1
 
   return (
-    <section className="my-6 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-4">
+    <section
+      className="my-6 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-4"
+      onKeyDown={(e) => {
+        if (isPracticeMode && e.code === 'Space') {
+          e.preventDefault()
+          handlePlayPause()
+        }
+        if (isPracticeMode && e.code === 'Escape') {
+          handleTogglePracticeMode()
+        }
+      }}
+    >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -438,6 +489,17 @@ export default function ScrollingScore({
           className={`ml-1 h-8 rounded-md border-2 border-zinc-300 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 transition-colors  ${showAdvanced ? 'text-zinc-600 bg-zinc-200' : 'hover:bg-zinc-100'}`}
         >
           <Settings className={`h-4.5 w-4.5 transition-transform ${showAdvanced ? 'text-zinc-600 rotate-90' : ''}`} />
+        </button>
+        <button
+          type="button"
+          onClick={handleTogglePracticeMode}
+          className={`ml-auto h-8 rounded-md border-2 px-3 py-1 text-xs font-semibold transition-colors ${
+            isPracticeMode
+              ? 'border-green-400 bg-green-100 text-green-700 hover:bg-green-200'
+              : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          {isPracticeMode ? '退出练习' : '🎹 练习'}
         </button>
       </div>
 
@@ -550,6 +612,7 @@ export default function ScrollingScore({
             const isCurrent =
               activeEventByLane[event.laneId] === event.id ||
               (!isPlaying && lastCrossedByLane[event.laneId] === event.id)
+            const practiceResult = practiceResults.get(event.id)
             const displayLabel = event.isRest
               ? 'Rest'
               : event.label ?? (event.pitches.length > 1 ? event.pitches.join(' · ') : event.pitches[0])
@@ -560,6 +623,10 @@ export default function ScrollingScore({
                 className={`absolute rounded-xl border-2 px-2 py-1 text-center text-xs font-semibold transition-colors ${
                   event.isRest
                     ? 'border-zinc-200 bg-zinc-100 text-zinc-400'
+                    : practiceResult === 'correct'
+                    ? 'border-green-400 bg-green-100 text-green-800'
+                    : practiceResult === 'incorrect'
+                    ? 'border-red-400 bg-red-100 text-red-800'
                     : isCurrent
                     ? 'border-amber-400 bg-amber-100 text-amber-800'
                     : 'border-zinc-300 bg-zinc-100 text-zinc-700'
@@ -588,9 +655,16 @@ export default function ScrollingScore({
         </div>
       </div>
 
+      {isPracticeMode && (
+        <div className="mt-4 border-t-2 border-zinc-200 pt-2">
+          <PianoKeys onNotePress={handlePracticeNotePress} autoFocus />
+        </div>
+      )}
+
       <p className="mt-3 text-xs text-zinc-500">
-        Red line is the playhead. Notes trigger when note start crosses the line.
-        {showAdvanced && ' Use lane M/S buttons for mute/solo.'}
+        {isPracticeMode
+          ? '练习模式：按下正确的琴键，绿色 = 正确，红色 = 错误。'
+          : `Red line is the playhead. Notes trigger when note start crosses the line.${showAdvanced ? ' Use lane M/S buttons for mute/solo.' : ''}`}
       </p>
     </section>
   )
