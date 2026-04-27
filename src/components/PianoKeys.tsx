@@ -54,9 +54,10 @@ const NOTE_SHORTCUT_LABEL_MAP: Record<string, string> = Object.fromEntries(
 interface PianoKeysProps {
   onNotePress?: (note: string) => void
   autoFocus?: boolean
+  volume?: number
 }
 
-export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {}) {
+export default function PianoKeys({ onNotePress, autoFocus, volume = 0 }: PianoKeysProps = {}) {
   const [pressedNotes, setPressedNotes] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -76,7 +77,7 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
     })
     if (event.repeat) return
 
-    void attackNote(note)
+    void attackNote(note, { volume })
     onNotePress?.(note)
   }
 
@@ -119,7 +120,7 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
                 onMouseDown={(event) => {
                   event.preventDefault()
                   setPressedNotes((prev) => new Set(prev).add(key.note))
-                  void attackNote(key.note)
+                  void attackNote(key.note, { volume })
                   onNotePress?.(key.note)
                 }}
                 onMouseUp={() => {
@@ -154,7 +155,7 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
                 onMouseDown={(event) => {
                   event.preventDefault()
                   setPressedNotes((prev) => new Set(prev).add(key.note))
-                  void attackNote(key.note)
+                  void attackNote(key.note, { volume })
                   onNotePress?.(key.note)
                 }}
                 onMouseUp={() => {
@@ -196,7 +197,7 @@ export default function PianoKeys({ onNotePress, autoFocus }: PianoKeysProps = {
         </div>
       </div>
       <p className="mt-2 text-xs text-gray-400">
-        点击琴键试听 · Click keys to play 
+        点击琴键试听 · Click keys to play
       </p>
     </div>
   )

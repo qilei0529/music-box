@@ -80,6 +80,9 @@ export async function attackNote(note: string, options?: PlayNoteOptions) {
   const Tone = await getTone()
   await Tone.start()
   const synth = await getSynth(options)
+  if (options?.volume !== undefined) {
+    synth.volume.value = options.volume
+  }
   synth.triggerAttack(note, Tone.now())
 }
 
